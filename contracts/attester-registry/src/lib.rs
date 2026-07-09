@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env};
+use soroban_sdk::{contract, contracterror, contractevent, contractimpl, contracttype, Address, Env};
 
 /// Storage keys for the attester registry.
 #[contracttype]
@@ -19,6 +19,20 @@ enum DataKey {
 pub enum Error {
     NotInitialized = 1,
     AlreadyInitialized = 2,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AttesterAdded {
+    #[topic]
+    pub attester: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AttesterRemoved {
+    #[topic]
+    pub attester: Address,
 }
 
 #[contract]
@@ -42,7 +56,8 @@ impl AttesterRegistry {
         Self::admin(&env)?.require_auth();
         env.storage()
             .persistent()
-            .set(&DataKey::Attester(attester), &true);
+            .set(&DataKey::Attester(attester.clone()), &true);
+        AttesterAdded { attester }.publish(&env);
         Ok(())
     }
 
@@ -50,7 +65,10 @@ impl AttesterRegistry {
     /// authorization. A no-op if the attester was never allowlisted.
     pub fn remove_attester(env: Env, attester: Address) -> Result<(), Error> {
         Self::admin(&env)?.require_auth();
-        env.storage().persistent().remove(&DataKey::Attester(attester));
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Attester(attester.clone()));
+        AttesterRemoved { attester }.publish(&env);
         Ok(())
     }
 
