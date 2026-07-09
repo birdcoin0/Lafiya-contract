@@ -104,3 +104,32 @@ fn add_attester_before_initialize_fails() {
     let result = client.try_add_attester(&attester);
     assert_eq!(result, Err(Ok(Error::NotInitialized)));
 }
+
+#[test]
+fn add_attester_without_admin_auth_fails() {
+    // No mock_all_auths(): calls must present a real, matching auth entry.
+    let env = Env::default();
+    let contract_id = env.register(AttesterRegistry, ());
+    let client = AttesterRegistryClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let attester = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin);
+
+    // Only mock an auth entry for `attester`, not `admin`, so the
+    // contract's `admin.require_auth()` has nothing to satisfy it.
+    env.mock_auths(&[soroban_sdk::testutils::MockAuth {
+        address: &attester,
+        invoke: &soroban_sdk::testutils::MockAuthInvoke {
+            contract: &client.address,
+            fn_name: "add_attester",
+            args: (attester.clone(),).into_val(&env),
+            sub_invokes: &[],
+        },
+    }]);
+
+    let result = client.try_add_attester(&attester);
+    assert!(result.is_err());
+    assert!(!client.is_attester(&attester));
+}
