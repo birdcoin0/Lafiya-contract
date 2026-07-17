@@ -104,6 +104,8 @@ Two Soroban contracts, each in its own crate under `contracts/`.
 | `attest(attester: Address, record_hash: BytesN<32>) -> Attestation` | Requires `attester`'s auth and that `attester` is allowlisted (checked via a cross-contract call to `attester-registry::is_attester`). Stores `{ attester, timestamp }` keyed by `record_hash`, overwriting any prior attestation for that hash. Emits `AttestationRecorded`. |
 | `get_attestation(record_hash: BytesN<32>) -> Option<Attestation>` | Looks up the latest attestation for a record hash. Open to any caller — this is what lets a responder's QR scan verify a card without an external oracle. |
 
+Note on Revocation: When an attester is removed from the allowlist, any previous attestations they have recorded are considered invalid by design. This ensures that if a health worker's authorization is revoked (e.g., due to fraud), their past records can no longer be verified.
+
 `attestation-registry` calls `attester-registry` through a local `#[contractclient]` trait interface (just `is_attester`), not a direct crate dependency — depending on the whole crate would link `attester-registry`'s own contract implementation into `attestation-registry`'s wasm build too, which is both wasted size and, at least on the Soroban SDK version this repo pins, produces a linker warning from the two contracts' colliding `initialize` exports.
 
 ## Repository Structure
