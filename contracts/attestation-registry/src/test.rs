@@ -123,6 +123,32 @@ fn attest_without_attester_auth_fails() {
     assert!(result.is_err());
     assert_eq!(client.get_attestation(&record_hash), None);
 }
+#[test]
+fn benchmark_storage_costs() {
+    let (env, client, attester_registry, _admin) = setup();
+    
+    // غادي نجربو 10، 100، و 1000
+    let sizes = [10, 100, 1000];
+    
+    for size in sizes.iter() {
+        // 1. Setup: نزيدو عدد ديال الـ attesters
+        for _ in 0..*size {
+            let attester = Address::generate(&env);
+            attester_registry.add_attester(&attester);
+        }
+        
+        // 2. نحسبو الكلفة ديال attest
+        let attester = Address::generate(&env);
+        attester_registry.add_attester(&attester);
+        let record_hash = BytesN::from_array(&env, &[0u8; 32]);
+        
+        env.budget().reset_unlimited(); // باش نبداو الحساب من الصفر
+        client.attest(&attester, &record_hash);
+        let budget = env.budget().cpu_instruction_cost();
+        
+        std::println!("Size: {}, CPU Cost: {}", size, budget);
+    }
+}
 
 fn parse_error_variants(content: &str) -> std::vec::Vec<std::string::String> {
     let mut variants = std::vec::Vec::new();
